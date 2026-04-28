@@ -12,10 +12,11 @@ app = Flask(__name__)
 #   - risposte di errore 4xx/5xx (after_request viene chiamato anche su errori)
 
 def _cors(response):
-    response.headers["Access-Control-Allow-Origin"]  = "*"
+    response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return response
+
 
 @app.after_request
 def add_cors(response):
