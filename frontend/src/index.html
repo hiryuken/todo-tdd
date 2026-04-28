@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✅ Todo TDD</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh;
+           display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+    h1 { font-size: 2.5rem; color: #2d3748; margin-bottom: 1.5rem; letter-spacing: -1px; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08);
+            width: 100%; max-width: 520px; overflow: hidden; }
+
+    /* Input row */
+    .add-row { display: flex; border-bottom: 1px solid #e2e8f0; }
+    #new-todo-input { flex: 1; padding: 1rem 1.2rem; font-size: 1rem; border: none; outline: none; }
+    #add-btn { padding: 0 1.4rem; background: #667eea; color: white; border: none;
+               font-size: 1.4rem; cursor: pointer; transition: background .2s; }
+    #add-btn:hover { background: #5a67d8; }
+
+    /* Filters */
+    .filters { display: flex; border-bottom: 1px solid #e2e8f0; }
+    .filter-btn { flex: 1; padding: .6rem; background: none; border: none; cursor: pointer;
+                  font-size: .85rem; color: #718096; transition: all .15s; }
+    .filter-btn.active { color: #667eea; font-weight: 700;
+                         border-bottom: 2px solid #667eea; }
+
+    /* List */
+    #todo-list { list-style: none; min-height: 40px; }
+    .todo-item { display: flex; align-items: center; padding: .85rem 1.2rem;
+                 border-bottom: 1px solid #f7f8fa; transition: background .1s; }
+    .todo-item:hover { background: #f7f8fa; }
+    .todo-item.done .todo-title { text-decoration: line-through; color: #a0aec0; }
+    .check-btn { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #cbd5e0;
+                 background: none; cursor: pointer; margin-right: .9rem; flex-shrink: 0;
+                 display: flex; align-items: center; justify-content: center;
+                 transition: all .15s; }
+    .todo-item.done .check-btn { background: #667eea; border-color: #667eea; color: white; }
+    .todo-title { flex: 1; font-size: .95rem; color: #2d3748; }
+    .del-btn { background: none; border: none; color: #fc8181; cursor: pointer;
+               font-size: 1.1rem; padding: .2rem .4rem; opacity: 0; transition: opacity .15s; }
+    .todo-item:hover .del-btn { opacity: 1; }
+
+    /* Footer */
+    .footer { display: flex; justify-content: space-between; align-items: center;
+              padding: .75rem 1.2rem; font-size: .82rem; color: #a0aec0; }
+    #clear-btn { background: none; border: none; color: #fc8181; cursor: pointer;
+                 font-size: .82rem; }
+    #clear-btn:hover { text-decoration: underline; }
+    #clear-btn:disabled { opacity: .3; cursor: default; }
+
+    .empty-msg { text-align: center; padding: 2rem; color: #cbd5e0; font-size: .9rem; }
+    #error-msg { color: #fc8181; font-size: .82rem; padding: .4rem 1.2rem; min-height: 1.4rem; }
+  </style>
+</head>
+<body>
+  <h1>✅ Todo TDD</h1>
+
+  <div class="card">
+    <!-- Input -->
+    <div class="add-row">
+      <input id="new-todo-input" data-testid="new-todo-input"
+             type="text" placeholder="Cosa devi fare?" maxlength="100" />
+      <button id="add-btn" data-testid="add-btn" title="Aggiungi">+</button>
+    </div>
+    <div id="error-msg" data-testid="error-msg"></div>
+
+    <!-- Filtri -->
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all"       data-testid="filter-all">Tutti</button>
+      <button class="filter-btn"        data-filter="active"    data-testid="filter-active">Attivi</button>
+      <button class="filter-btn"        data-filter="completed" data-testid="filter-completed">Completati</button>
+    </div>
+
+    <!-- Lista -->
+    <ul id="todo-list" data-testid="todo-list"></ul>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span id="pending-label" data-testid="pending-label"></span>
+      <button id="clear-btn" data-testid="clear-btn" disabled>Elimina completati</button>
+    </div>
+  </div>
+
+  <!-- Carica la configurazione runtime PRIMA del modulo ES -->
+  <script src="./config.js"></script>
+
+  <script type="module">
+    import { TodoClient } from './todo-client.js';
+    import { formatPendingLabel, filterTodos, validateTitle, sortTodos } from './todo-logic.js';
+
+    // window.API_BASE è definito da config.js (locale) o config.docker.js (Docker)
+    const client = new TodoClient(window.API_BASE);
+
+    let allItems = [];
+    let activeFilter = 'all';
+
+    // ── DOM refs ──────────────────────────────────────────────────────────
+    const input      = document.getElementById('new-todo-input');
+    const addBtn     = document.getElementById('add-btn');
+    const list       = document.getElementById('todo-list');
+    const errorMsg   = document.getElementById('error-msg');
+    const pendingLbl = document.getElementById('pending-label');
+    const clearBtn   = document.getElementById('clear-btn');
+
+    // ── Render ────────────────────────────────────────────────────────────
+    function render() {
+      const visible = sortTodos(filterTodos(allItems, activeFilter));
+      list.innerHTML = '';
+
+      if (visible.length === 0) {
+        list.innerHTML = '<li class="empty-msg">Nessuna attività</li>';
+      } else {
+        visible.forEach(item => {
+          const li = document.createElement('li');
+          li.className = `todo-item${item.done ? ' done' : ''}`;
+          li.dataset.testid = 'todo-item';
+          li.dataset.id = item.id;
+          li.innerHTML = `
+            <button class="check-btn" data-testid="check-btn-${item.id}" title="Completa">
+              ${item.done ? '✓' : ''}
+            </button>
+            <span class="todo-title" data-testid="todo-title">${escHtml(item.title)}</span>
+            <button class="del-btn" data-testid="del-btn-${item.id}" title="Elimina">✕</button>`;
+          list.appendChild(li);
+        });
+      }
+
+      const pending = allItems.filter(i => !i.done).length;
+      pendingLbl.textContent = formatPendingLabel(pending);
+      clearBtn.disabled = !allItems.some(i => i.done);
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function setError(msg) { errorMsg.textContent = msg; }
+    function clearError()  { errorMsg.textContent = ''; }
+
+    // ── Load ──────────────────────────────────────────────────────────────
+    async function load() {
+      try {
+        const data = await client.getAll();
+        allItems = data.items;
+        render();
+      } catch (e) { setError('Impossibile connettersi al server.'); }
+    }
+
+    // ── Add ───────────────────────────────────────────────────────────────
+    addBtn.addEventListener('click', async () => {
+      const title = input.value;
+      const v = validateTitle(title);
+      if (!v.valid) { setError(v.error); return; }
+      clearError();
+      try {
+        const item = await client.create(title.trim());
+        allItems.push(item);
+        input.value = '';
+        render();
+      } catch (e) { setError(e.message); }
+    });
+
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') addBtn.click(); });
+
+    // ── Complete / Delete (event delegation) ──────────────────────────────
+    list.addEventListener('click', async e => {
+      const li = e.target.closest('.todo-item');
+      if (!li) return;
+      const id = li.dataset.id;
+
+      if (e.target.closest('.check-btn') && !li.classList.contains('done')) {
+        try {
+          const updated = await client.complete(id);
+          allItems = allItems.map(i => i.id === id ? updated : i);
+          render();
+        } catch (e) { setError(e.message); }
+      }
+
+      if (e.target.closest('.del-btn')) {
+        try {
+          await client.delete(id);
+          allItems = allItems.filter(i => i.id !== id);
+          render();
+        } catch (e) { setError(e.message); }
+      }
+    });
+
+    // ── Clear completed ───────────────────────────────────────────────────
+    clearBtn.addEventListener('click', async () => {
+      try {
+        await client.clearCompleted();
+        allItems = allItems.filter(i => !i.done);
+        render();
+      } catch (e) { setError(e.message); }
+    });
+
+    // ── Filters ───────────────────────────────────────────────────────────
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeFilter = btn.dataset.filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+      });
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────────
+    load();
+  </script>
+</body>
+</html>

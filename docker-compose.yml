@@ -1,0 +1,43 @@
+services:
+
+  # ── Backend Flask ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: todo-backend
+    ports:
+      - "5000:5000"       # esposto anche localmente per test diretti (curl, Postman)
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=0     # 0 in container: il reloader causa problemi con PID 1
+    networks:
+      - todo-net
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ── Frontend nginx ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: todo-frontend
+    ports:
+      - "3000:3000"       # apri http://localhost:3000 nel browser
+    depends_on:
+      backend:
+        condition: service_healthy   # parte solo quando Flask è pronto
+    networks:
+      - todo-net
+
+# ── Rete interna ───────────────────────────────────────────────────────────────
+# frontend e backend comunicano su questa rete.
+# Il nome "backend" nel nginx.conf risolve al container Flask.
+networks:
+  todo-net:
+    driver: bridge

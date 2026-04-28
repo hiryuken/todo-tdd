@@ -1,0 +1,6 @@
+node_modules
+tests/
+vitest.config.js
+.eslintrc.cjs
+package-lock.json
+coverage/

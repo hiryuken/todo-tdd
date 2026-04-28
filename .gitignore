@@ -1,0 +1,25 @@
+# File .gitignore da creare nella root del progetto
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node
+node_modules/
+frontend/coverage/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+
