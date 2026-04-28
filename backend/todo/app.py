@@ -22,6 +22,7 @@ def _cors(response):
 def add_cors(response):
     return _cors(response)
 
+
 # Flask non chiama after_request per le risposte generate da handle_exception,
 # quindi registriamo anche un error handler globale che aggiunge CORS.
 @app.errorhandler(Exception)
@@ -36,6 +37,7 @@ def handle_exception(e):
     response = jsonify({"error": "Internal server error"})
     response.status_code = 500
     return _cors(response)
+
 
 # Risponde alle preflight OPTIONS su qualsiasi path
 @app.route("/", defaults={"path": ""}, methods=["OPTIONS"])
@@ -71,7 +73,7 @@ def get_todos():
 
 @app.post("/todos")
 def create_todo():
-    data  = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True) or {}
     title = data.get("title", "")
     try:
         item = _todo.add(title)
